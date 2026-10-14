@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Tinta
+GenericName=PDF Editor
+Comment=Read, organize, combine, split and secure PDFs
+Exec=tinta %U
+TryExec=tinta
+Icon=ai.storyteller.tinta
+Terminal=false
+StartupNotify=true
+StartupWMClass=ai.storyteller.tinta
+Categories=Office;Viewer;
+Keywords=pdf;viewer;editor;annotate;sign;forms;merge;split;
+MimeType=application/pdf;

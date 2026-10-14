@@ -1,0 +1,21 @@
+[package]
+name = "tinta-redact"
+description = "Redaction (architecture §11.2): marks, apply (glyphs, images, vectors, XObjects, annotations, fields), verification"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tinta-cos = { workspace = true }
+tinta-content = { workspace = true }
+tinta-fonts = { workspace = true }
+tinta-model = { workspace = true }
+tinta-forms = { workspace = true }
+tinta-edit = { workspace = true }
+tinta-annot = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

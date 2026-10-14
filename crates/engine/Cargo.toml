@@ -1,0 +1,47 @@
+[package]
+name = "tinta-engine"
+description = "Tinta engine façade: session, documents, command/tool catalogue"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tinta-measure = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tiff"] }
+tinta-render = { workspace = true }
+tinta-cos = { workspace = true }
+tinta-organize = { workspace = true }
+tinta-annot = { workspace = true }
+tinta-forms = { workspace = true }
+tinta-xfa = { workspace = true }
+tinta-edit = { workspace = true }
+tinta-audit = { workspace = true }
+tinta-redact = { workspace = true }
+tinta-print = { workspace = true }
+tinta-xfdf = { workspace = true }
+tinta-sign = { workspace = true }
+tinta-optimize = { workspace = true }
+tinta-a11y = { workspace = true }
+tinta-ocr = { workspace = true }
+tinta-js = { workspace = true }
+tinta-compare = { workspace = true }
+tinta-preflight = { workspace = true }
+tinta-export = { workspace = true }
+tinta-fonts = { workspace = true }
+tinta-create = { workspace = true }
+tinta-model = { workspace = true }
+tinta-geom = { workspace = true }
+thiserror = { workspace = true }
+png = "0.18"
+# Already in the graph (url and idna through webbrowser, icu_properties through boa): they show
+# the host of a document's link the way the browser reads it (links::display_host).
+url = "2.5"
+idna = "1.1"
+icu_properties = "2.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+# Already in the graph through lopdf; used only for the local UTC offset ("today").
+chrono = { version = "0.4", default-features = false, features = ["clock"] }

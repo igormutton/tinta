@@ -1,0 +1,17 @@
+[package]
+name = "tinta-xfdf"
+description = "Comment and form data exchange: XFDF (ISO 19444-1) and FDF import/export, form data as XML, CSV and tab-delimited text"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tinta-cos = { workspace = true }
+tinta-annot = { workspace = true }
+tinta-forms = { workspace = true }
+tinta-model = { workspace = true }
+roxmltree = "0.20"
+thiserror = { workspace = true }

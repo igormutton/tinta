@@ -1,0 +1,19 @@
+[package]
+name = "tinta-forms"
+description = "Interactive forms (AcroForm): field model, filling, appearances, reset (ISO 32000-2 §12.7)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tinta-cos = { workspace = true }
+tinta-fonts = { workspace = true }
+tinta-content = { workspace = true }
+tinta-model = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+hayro-syntax = { workspace = true }
