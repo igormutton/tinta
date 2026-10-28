@@ -31,8 +31,13 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: trunk
+      # Open fonts that complete subsets in Edit text (ATTRIBUTION.toml kind = "document-font").
+      - name: Fetch document fonts
+        run: cargo xtask document-fonts
       - name: Build apps/tinta-web
         working-directory: apps/tinta-web
+        env:
+          CRAFT_FONTS_DIR: ${{ github.workspace }}/target/document-fonts
         run: trunk build --release
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

@@ -366,6 +366,10 @@ pub(super) fn rewrite_styled_block(
                 tinta_fonts::embedding::matching_faces(&source.base_font).into_iter().find(|f| tinta_fonts::embedding::covers(f.bytes, &s))
             {
                 let key = face.name();
+                // A metric-compatible family standing in for a proprietary one is reported.
+                if tinta_fonts::embedding::is_substitute(&source.base_font, face) {
+                    substituted = Some(face.family.to_string());
+                }
                 if let Some(name) = full_faces.get(&key) {
                     name.clone()
                 } else {

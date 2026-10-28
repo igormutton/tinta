@@ -36,6 +36,11 @@ const COMMANDS: &[(&str, &str, Command)] = &[
     ("screenshots", "Regenerate the README screenshots in docs/images/ and their ATTRIBUTION entries", screenshots::run),
     ("models", "Fetch the OCR models (ATTRIBUTION.toml kind = \"model\") into assets/models/, verified by SHA-256", assets::models),
     ("demo-pdf", "Build dist/demo/tinta-showcase.pdf (needs Google Chrome or Chromium)", demo_pdf::run),
+    (
+        "document-fonts",
+        "Fetch the open document fonts (ATTRIBUTION.toml kind = \"document-font\") into target/document-fonts/ as a CRAFT_FONTS_DIR",
+        assets::document_fonts,
+    ),
 ];
 
 fn version_cmd(args: &[String]) -> anyhow::Result<()> {
