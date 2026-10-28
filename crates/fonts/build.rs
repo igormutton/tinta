@@ -40,7 +40,7 @@ fn craft_fonts(dir: &std::path::Path) -> Result<String, String> {
     let mut out = String::new();
     for line in text.lines().map(str::trim).filter(|l| !l.is_empty() && !l.starts_with('#')) {
         let f: Vec<&str> = line.split(" | ").map(str::trim).collect();
-        let [family, style, file, scripts, ..] = f.as_slice() else {
+        let [family, style, file, scripts, flags @ ..] = f.as_slice() else {
             return Err(format!("malformed manifest line: {line}"));
         };
         // AGENTS.md §1.1 bars Adobe's type designs whatever their licence, so a checkout that
@@ -55,8 +55,13 @@ fn craft_fonts(dir: &std::path::Path) -> Result<String, String> {
         let telugu = scripts.split(',').any(|s| s.trim() == "Telu");
         // And the Hebrew ones (small), for Hebrew text and Edit text on the web.
         let hebrew = scripts.split(',').any(|s| s.trim() == "Hebr");
-        let web_face =
-            (*family == "BIZ UDPGothic" && *style == "Regular") || arabic || telugu || hebrew || scripts.split(',').any(|s| s.trim() == "Thai");
+        // Faces marked `web` (`cargo xtask document-fonts`) complete subsets in Edit text on the web.
+        let web_face = (*family == "BIZ UDPGothic" && *style == "Regular")
+            || arabic
+            || telugu
+            || hebrew
+            || scripts.split(',').any(|s| s.trim() == "Thai")
+            || flags.contains(&"web");
         if wasm && !web_face {
             continue;
         }

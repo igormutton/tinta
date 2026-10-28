@@ -73,6 +73,44 @@ pub fn discover(roots: &[PathBuf]) -> Vec<FontFile> {
     files.sort_by(|a, b| a.face.cmp(&b.face).then(a.path.cmp(&b.path)));
     files
 }
+
+/// Tinta's own fonts folder. Openly licensed faces put here complete subsets without being
+/// installed for the whole system: `~/Library/Application Support/Tinta/Fonts` (macOS),
+/// `%LOCALAPPDATA%\Tinta\Fonts` (Windows), `$XDG_DATA_HOME/tinta/fonts` (others).
+pub fn tinta_fonts_directory() -> Option<PathBuf> {
+    let env = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
+    if cfg!(target_os = "macos") {
+        env("HOME").map(|h| h.join("Library/Application Support/Tinta/Fonts"))
+    } else if cfg!(windows) {
+        env("LOCALAPPDATA").map(|d| d.join("Tinta").join("Fonts"))
+    } else {
+        env("XDG_DATA_HOME").or_else(|| env("HOME").map(|h| h.join(".local/share"))).map(|d| d.join("tinta/fonts"))
+    }
+}
+
+/// Register the openly licensed faces found in `roots` (see [`discover`]) as full faces, so
+/// characters typed into a subset of the same family, or of a proprietary family they are
+/// metric-compatible with, keep the source look. Returns how many faces were added. Reads files:
+/// call it off the UI thread.
+pub fn register_full_faces(roots: &[PathBuf]) -> usize {
+    use std::io::Read;
+    discover(roots)
+        .into_iter()
+        .filter(|f| {
+            let mut bytes = Vec::new();
+            std::fs::File::open(&f.path).and_then(|file| file.take((16 << 20) + 1).read_to_end(&mut bytes)).is_ok()
+                && tinta_fonts::embedding::register_full_face(bytes).unwrap_or(false)
+        })
+        .count()
+}
+
+/// [`register_full_faces`] over the installed font folders and [`tinta_fonts_directory`].
+pub fn register_installed_full_faces() -> usize {
+    let mut roots = installed_directories();
+    roots.extend(tinta_fonts_directory());
+    register_full_faces(&roots)
+}
+
 fn font_extension(path: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("ttf") || e.eq_ignore_ascii_case("otf"))
 }

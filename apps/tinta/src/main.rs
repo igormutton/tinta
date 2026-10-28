@@ -224,6 +224,12 @@ fn main() -> eframe::Result {
     };
     let choice = renderer_choice(std::env::var("PDFCRAFT_RENDERER").ok().as_deref());
     let launch = Launch { files, options, control_file, create_images, integrated, window_controls };
+    // Openly licensed installed fonts complete subsets of the same (or a metric-compatible)
+    // family when text is edited. Bounded scan, off the UI thread; editing works without it.
+    let _ = std::thread::Builder::new().name("document-fonts".into()).spawn(|| {
+        let added = tinta_engine::text_fonts::register_installed_full_faces();
+        log::info!("document fonts: {added} installed open faces can complete subsets");
+    });
     // Finder, Open With and the Dock deliver files as Apple events, not arguments; catch the one
     // that launched us as well as later ones. Lives until the event loop returns.
     #[cfg(target_os = "macos")]

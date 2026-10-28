@@ -15,10 +15,103 @@ pub fn face_key(name: &str) -> String {
     name.rsplit('+').next().unwrap_or(name).chars().filter(char::is_ascii_alphanumeric).flat_map(char::to_lowercase).collect()
 }
 
-/// Full, approved faces of the source family. This never silently selects another family.
+/// Full faces that complete subsets: craft-fonts plus openly licensed faces registered at run
+/// time (installed fonts, see [`register_full_face`]).
+fn full_faces() -> Vec<&'static crate::CraftFont> {
+    let registered = REGISTERED.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    crate::CRAFT_FONTS.iter().chain(registered.iter().copied()).collect()
+}
+
+/// Full, approved faces for a source `/BaseFont`, best first: the same family (by full name,
+/// then by family and style), then open metric-compatible replacements of a proprietary family
+/// ([`crate::families`]), in the same style. Callers report a replacement as a substitution
+/// ([`is_substitute`]); a family that merely looks alike is never chosen.
 pub fn matching_faces(name: &str) -> Vec<&'static crate::CraftFont> {
     let key = face_key(name);
-    crate::CRAFT_FONTS.iter().filter(|f| face_key(f.family) == key || face_key(&f.name()) == key).collect()
+    let (family, style) = crate::families::split(name);
+    let faces = full_faces();
+    let same_style = |f: &crate::CraftFont| crate::families::style_key(f.style) == style;
+    let mut out: Vec<&'static crate::CraftFont> = Vec::new();
+    let mut push = |f: &'static crate::CraftFont| {
+        if !out.iter().any(|o| std::ptr::eq(*o, f)) {
+            out.push(f);
+        }
+    };
+    for f in faces.iter().filter(|f| face_key(f.family) == key || face_key(&f.name()) == key) {
+        push(f);
+    }
+    if !family.is_empty() {
+        for f in faces.iter().filter(|f| face_key(f.family) == family && same_style(f)) {
+            push(f);
+        }
+    }
+    for substitute in crate::families::substitutes(&family) {
+        let wanted = face_key(substitute);
+        for f in faces.iter().filter(|f| face_key(f.family) == wanted && same_style(f)) {
+            push(f);
+        }
+    }
+    out
+}
+
+/// Whether `face`, from [`matching_faces`] for `name`, is another family standing in for it.
+pub fn is_substitute(name: &str, face: &crate::CraftFont) -> bool {
+    let key = face_key(name);
+    let family = face_key(face.family);
+    !(family == key || face_key(&face.name()) == key || family == crate::families::split(name).0)
+}
+
+/// Faces added by [`register_full_face`]. Leaked on purpose: each is registered once, for the
+/// life of the process, within [`MAX_REGISTERED_FACES`] and [`MAX_REGISTERED_BYTES`].
+static REGISTERED: std::sync::RwLock<Vec<&'static crate::CraftFont>> = std::sync::RwLock::new(Vec::new());
+const MAX_REGISTERED_FACES: usize = 512;
+const MAX_REGISTERED_BYTES: usize = 256 << 20;
+
+/// Make an openly licensed full face available to [`matching_faces`], so new characters typed
+/// into its subsets keep the source face. Returns `Ok(false)` when the same family and style is
+/// already known or the registry is full. The font must pass [`validate_document_input`].
+pub fn register_full_face(bytes: Vec<u8>) -> Result<bool, String> {
+    validate_document_input(&bytes)?;
+    let (family, style) = family_and_style(&bytes)?;
+    let mut registered = REGISTERED.write().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let known =
+        |f: &crate::CraftFont| face_key(f.family) == face_key(&family) && crate::families::style_key(f.style) == crate::families::style_key(&style);
+    if crate::CRAFT_FONTS.iter().any(known) || registered.iter().any(|f| known(f)) {
+        return Ok(false);
+    }
+    let total: usize = registered.iter().map(|f| f.bytes.len()).sum();
+    if registered.len() >= MAX_REGISTERED_FACES || total.saturating_add(bytes.len()) > MAX_REGISTERED_BYTES {
+        return Ok(false);
+    }
+    let face = crate::CraftFont {
+        family: Box::leak(family.into_boxed_str()),
+        style: Box::leak(style.into_boxed_str()),
+        scripts: &[],
+        bytes: Box::leak(bytes.into_boxed_slice()),
+    };
+    registered.push(Box::leak(Box::new(face)));
+    Ok(true)
+}
+
+/// The family (typographic family when present) and the style the PostScript name gives, or the
+/// subfamily name when the PostScript name has none ("Open Sans", "SemiBold").
+fn family_and_style(bytes: &[u8]) -> Result<(String, String), String> {
+    use skrifa::string::StringId;
+    let f = FontRef::new(bytes).map_err(|e| e.to_string())?;
+    let name = |id| {
+        f.localized_strings(id)
+            .find(|s| s.language() == Some("en"))
+            .or_else(|| f.localized_strings(id).next())
+            .map(|s| s.to_string())
+            .filter(|s| !s.is_empty() && s.len() <= 128)
+    };
+    let family = name(StringId::TYPOGRAPHIC_FAMILY_NAME).or_else(|| name(StringId::FAMILY_NAME)).ok_or("the font has no family name")?;
+    let postscript = name(StringId::POSTSCRIPT_NAME).unwrap_or_default();
+    let style = match postscript.find('-') {
+        Some(at) => postscript.get(at + 1..).unwrap_or_default().to_owned(),
+        None => name(StringId::TYPOGRAPHIC_SUBFAMILY_NAME).or_else(|| name(StringId::SUBFAMILY_NAME)).unwrap_or_else(|| "Regular".into()),
+    };
+    Ok((family, style))
 }
 
 /// Whether a complete font program can show every non-newline character.
