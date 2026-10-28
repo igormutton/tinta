@@ -177,7 +177,7 @@ pub fn substitute(req: &Request<'_>) -> Substitution {
             crate::std14::Match::FamilyHint => at(Face::Standard14(f), Why::NameHintedStandard14),
         };
     }
-    if let Some(f) = crate::embedding::matching_faces(req.base_font).first() {
+    if let Some(f) = crate::embedding::matching_faces(req.base_font).into_iter().find(|f| !crate::embedding::is_substitute(req.base_font, f)) {
         return at(Face::Craft(f), Why::ExactCraftFamily);
     }
     if let Some(script) = req.ordering.and_then(script_for) {

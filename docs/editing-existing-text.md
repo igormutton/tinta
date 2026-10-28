@@ -33,6 +33,19 @@ a second bidi reversal; adjacent visual glyph runs still recover their own readi
 Only right-to-left ActualText is kept apart this way: left-to-right spans, such as the Latin
 ligatures (`fi`, `fl`) Word and Chrome wrap in ActualText mid-word, join their line as before.
 
+The desktop app also completes subsets automatically from installed fonts. At startup it scans,
+off the UI thread, the system font folders and Tinta's own fonts folder
+(`~/Library/Application Support/Tinta/Fonts` on macOS, `%LOCALAPPDATA%\Tinta\Fonts` on Windows,
+`$XDG_DATA_HOME/tinta/fonts` elsewhere) for openly licensed faces. A character missing from a
+subset is drawn with the same family's full face, matched by family and style (`OpenSans-SemiBold`
+→ Open Sans SemiBold). Proprietary families with no open program use a metric-compatible open
+family in the same style, and the edit reports that substitution: Calibri → Carlito,
+Cambria → Caladea, Arial/Helvetica → Liberation Sans or Arimo, Arial Narrow → Liberation Sans
+Narrow, Times New Roman → Liberation Serif or Tinos, Courier New → Liberation Mono or Cousine,
+Georgia → Gelasio, Segoe UI → Selawik (`crates/fonts/src/families.rs`). Look-alike families
+without matching widths (for Futura, for example) are never chosen; Helvetica, Times or Courier
+remain the last resort.
+
 For headless editing, use `text_font_files` → `text_font_import` → `text_fonts` and pass a
 resource to `text_edit.font_resource`. `text_edit.ranges` holds selected range formatting.
 `text_edit_layout` accepts resource/ranges too and measures a draft without applying it.

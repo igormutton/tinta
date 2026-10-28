@@ -733,6 +733,11 @@ fn odd_arabic_text_never_panics() {
 
 /// One page with Helvetica (WinAnsi) and a subset font that has only the glyphs it uses.
 fn text_page(content: &str) -> Document {
+    text_page_with_subset(content, "ABCDEF+Arial")
+}
+
+/// [`text_page`] with another `/BaseFont` for the subset font F2.
+fn text_page_with_subset(content: &str, subset: &str) -> Document {
     let objs: Vec<String> = vec![
         "<< /Type /Catalog /Pages 2 0 R >>".into(),
         "<< /Type /Pages /Kids [3 0 R] /Count 1 >>".into(),
@@ -740,8 +745,7 @@ fn text_page(content: &str) -> Document {
         format!("<< /Length {} >>\nstream\n{content}\nendstream", content.len()),
         "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>".into(),
         // Subset: glyphs for a (97) and b (98) only.
-        "<< /Type /Font /Subtype /TrueType /BaseFont /ABCDEF+Arial /FirstChar 97 /LastChar 99 /Widths [500 520 0] /Encoding /WinAnsiEncoding >>"
-            .into(),
+        format!("<< /Type /Font /Subtype /TrueType /BaseFont /{subset} /FirstChar 97 /LastChar 99 /Widths [500 520 0] /Encoding /WinAnsiEncoding >>"),
     ];
     let mut out = b"%PDF-1.7\n".to_vec();
     let mut offs = Vec::new();
@@ -3442,4 +3446,31 @@ fn an_items_measured_face_is_the_face_it_is_written_as() {
     // Courier is monospaced in every style: equal widths here are correct, not a collapsed face.
     let courier = |italic| Family::Courier.width("Anna", 12.0, false, italic);
     assert_eq!(courier(false), courier(true));
+}
+
+/// A registered open face completes its subset: a character the subset lacks is drawn with the
+/// full program of the same family instead of falling back to Helvetica.
+#[test]
+fn a_registered_full_face_completes_its_subset_instead_of_helvetica() {
+    let inter = include_bytes!("../../../assets/fonts/Inter-Regular.ttf").to_vec();
+    let _ = tinta_fonts::embedding::register_full_face(inter).unwrap();
+    let mut doc = text_page_with_subset("BT /F2 10 Tf 72 600 Td (ab) Tj ET", "ABCDEF+Inter-Regular");
+    // "c" has no glyph in the subset; Inter Regular is the same family, so nothing is substituted.
+    let r = text::replace_block(&mut doc, 0, 0, "abc").unwrap();
+    assert_eq!(r.substituted, None);
+    let doc2 = reopen(&doc);
+    let lines = text::text_lines(&doc2, 0).unwrap();
+    assert!(lines.iter().all(|l| !l.base_font.starts_with("Helvetica")), "{:?}", lines.iter().map(|l| &l.base_font).collect::<Vec<_>>());
+    assert_eq!(lines.iter().map(|l| l.text.as_str()).collect::<String>(), "abc");
+    assert!(lines.iter().any(|l| tinta_fonts::embedding::face_key(&l.base_font).contains("inter")));
+}
+
+/// A metric-compatible open family is a substitution and is reported as one; the same family is not.
+#[test]
+fn metric_compatible_faces_are_reported_as_substitutes() {
+    let face = |family| tinta_fonts::CraftFont { family, style: "Regular", scripts: &[], bytes: &[] };
+    assert!(tinta_fonts::embedding::is_substitute("ABCDEF+Calibri", &face("Carlito")));
+    assert!(tinta_fonts::embedding::is_substitute("ArialMT", &face("Liberation Sans")));
+    assert!(!tinta_fonts::embedding::is_substitute("ABCDEF+OpenSans-Regular", &face("Open Sans")));
+    assert!(!tinta_fonts::embedding::is_substitute("Carlito-Bold", &face("Carlito")));
 }
