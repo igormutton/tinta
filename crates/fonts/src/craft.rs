@@ -314,6 +314,9 @@ mod tests {
         if CRAFT_FONTS.iter().any(|f| f.family == "BIZ UDPGothic") {
             assert_eq!(ui.first().map(|f| f.family), Some("BIZ UDPGothic"));
         }
-        assert_eq!(document_japanese_font().map(|f| f.family), Some("Shippori Mincho"));
+        // A CRAFT_FONTS_DIR may carry only Latin document fonts (`cargo xtask document-fonts`).
+        if CRAFT_FONTS.iter().any(|f| f.covers("Jpan")) {
+            assert_eq!(document_japanese_font().map(|f| f.family), Some("Shippori Mincho"));
+        }
     }
 }

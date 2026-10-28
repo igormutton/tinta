@@ -1713,6 +1713,20 @@ pub(crate) fn rewrite_block_with_limit(
         ));
     }
     let visual_indic = members.iter().any(|line| line.visual_order);
+    // A full face completes the subset only for characters the paragraph's own fonts can't show;
+    // text they can show keeps the single-style rewrite.
+    let source_metrics: Vec<Metrics> = members
+        .iter()
+        .filter_map(|line| fonts_res.get(line.font.as_bytes()).and_then(|f| doc.dict(f)))
+        .map(|d| Metrics::from_dict(doc, &d))
+        .collect();
+    let sources_show = |draft: &str| {
+        draft.chars().filter(|c| !c.is_whitespace()).all(|c| {
+            let mut buf = [0u8; 4];
+            let s: &str = c.encode_utf8(&mut buf);
+            source_metrics.iter().any(|m| source_encodes(m, s))
+        })
+    };
     if !hebrew
         && !visual_indic
         && (!style.ranges.is_empty()
@@ -1720,7 +1734,7 @@ pub(crate) fn rewrite_block_with_limit(
             || (text.is_some_and(|draft| {
                 draft.contains('\n')
                     || tinta_fonts::source_shaping::required(draft)
-                    || !tinta_fonts::embedding::matching_faces(&b.base_font).is_empty()
+                    || (!tinta_fonts::embedding::matching_faces(&b.base_font).is_empty() && !sources_show(draft))
             }) || registered_face
                 || b.rows.iter().any(|row| row.len() > 1)
                 || members.iter().any(|line| line.font != first.font || line.size != first.size || line.color != first.color))

@@ -46,6 +46,13 @@ Georgia → Gelasio, Segoe UI → Selawik (`crates/fonts/src/families.rs`). Look
 without matching widths (for Futura, for example) are never chosen; Helvetica, Times or Courier
 remain the last resort.
 
+Builds can also carry these faces. `cargo xtask document-fonts` downloads the regular, bold,
+italic and bold italic styles of Open Sans, Carlito, Caladea, Arimo, Tinos, Cousine and Gelasio
+(`kind = "document-font"` in `ATTRIBUTION.toml`, pinned and verified by SHA-256) into
+`target/document-fonts/` with a craft-fonts manifest; building with
+`CRAFT_FONTS_DIR=target/document-fonts` embeds them, the web build included (about 9.6 MB). The
+GitHub Pages workflow does this, so the online version completes subsets without installed fonts.
+
 For headless editing, use `text_font_files` → `text_font_import` → `text_fonts` and pass a
 resource to `text_edit.font_resource`. `text_edit.ranges` holds selected range formatting.
 `text_edit_layout` accepts resource/ranges too and measures a draft without applying it.
