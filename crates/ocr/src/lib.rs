@@ -14,9 +14,12 @@ use std::path::{Path, PathBuf};
 
 pub use tinta_fonts::helvetica_width;
 
-/// The model files, as named in ATTRIBUTION.toml.
-pub const DETECTION_MODEL: &str = "text-detection.rten";
-pub const RECOGNITION_MODEL: &str = "text-recognition.rten";
+/// The model files, as named in ATTRIBUTION.toml: the ONNX files ocrs publishes.
+pub const DETECTION_MODEL: &str = "text-detection.onnx";
+pub const RECOGNITION_MODEL: &str = "text-recognition.onnx";
+/// The rten-format files earlier releases shipped (no longer published). Still read when a
+/// folder has them and not the ONNX files.
+const LEGACY_MODELS: [(&str, &str); 1] = [("text-detection.rten", "text-recognition.rten")];
 
 /// The recognition model's alphabet, as it was trained (ocrs-models' `DEFAULT_ALPHABET`): its
 /// output classes follow this order. The ocrs crate's own copy has an `E` where the training had
@@ -48,10 +51,12 @@ pub struct Models {
 }
 
 impl Models {
-    /// The models in `dir`, if both files are there.
+    /// The models in `dir`, if both files are there: the ONNX pair, else the legacy rten pair.
     pub fn in_dir(dir: &Path) -> Option<Models> {
-        let m = Models { detection: dir.join(DETECTION_MODEL), recognition: dir.join(RECOGNITION_MODEL) };
-        (m.detection.is_file() && m.recognition.is_file()).then_some(m)
+        std::iter::once((DETECTION_MODEL, RECOGNITION_MODEL)).chain(LEGACY_MODELS).find_map(|(detection, recognition)| {
+            let m = Models { detection: dir.join(detection), recognition: dir.join(recognition) };
+            (m.detection.is_file() && m.recognition.is_file()).then_some(m)
+        })
     }
 
     /// Look for the models: `$PDFCRAFT_MODELS`, then where the release packages install them
@@ -326,6 +331,24 @@ mod tests {
             assert_eq!(models.detection.canonicalize().unwrap(), models_dir.join(DETECTION_MODEL).canonicalize().unwrap(), "{name}");
         }
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// Folders installed by earlier releases hold the rten files; the ONNX pair wins when both are there.
+    #[test]
+    fn reads_the_onnx_models_and_falls_back_to_legacy_rten_files() {
+        let dir = std::env::temp_dir().join(format!("tinta-ocr-legacy-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert_eq!(Models::in_dir(&dir), None);
+        for file in ["text-detection.rten", "text-recognition.rten"] {
+            std::fs::write(dir.join(file), b"model").unwrap();
+        }
+        assert_eq!(Models::in_dir(&dir).unwrap().detection, dir.join("text-detection.rten"));
+        for file in [DETECTION_MODEL, RECOGNITION_MODEL] {
+            std::fs::write(dir.join(file), b"model").unwrap();
+        }
+        let models = Models::in_dir(&dir).unwrap();
+        assert_eq!((models.detection, models.recognition), (dir.join(DETECTION_MODEL), dir.join(RECOGNITION_MODEL)));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The message tells end users what to do; release builds have no cargo.

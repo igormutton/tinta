@@ -13,5 +13,7 @@ workspace = true
 [dependencies]
 tinta-fonts = { workspace = true }
 ocrs = { version = "0.13.1", default-features = false, features = ["rten"] }
-rten = { version = "0.26.0", default-features = false, features = ["rten_format"] }
+# ONNX: the format ocrs publishes its models in (the rten files are no longer served);
+# rten: models installed by earlier releases.
+rten = { version = "0.26.0", default-features = false, features = ["onnx_format", "rten_format"] }
 thiserror.workspace = true
